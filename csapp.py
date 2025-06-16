@@ -9,7 +9,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 import plotly.express as px
 
-st.title('🧠 Customer Segmentation App with File Preview')
+st.title('🧠 Customer Segmentation App with File Support')
 
 uploaded_file = st.file_uploader(
     "📁 Upload CSV, Excel, PDF, or PPTX file", 
@@ -57,15 +57,22 @@ if uploaded_file is not None:
         st.subheader("📊 Data Preview")
         st.dataframe(decoded.head())
 
+        # Select and clean numeric features
         features = decoded.select_dtypes(include=[np.number])
-        features = features.replace([np.inf, -np.inf], np.nan).dropna()
+        features = features.replace([np.inf, -np.inf], np.nan)
+
+        # Keep only rows with valid numeric data
+        valid_idx = features.dropna().index
+        features = features.loc[valid_idx].reset_index(drop=True)
+        decoded = decoded.loc[valid_idx].reset_index(drop=True)
 
         if features.empty:
             st.warning("⚠️ No usable numeric data after cleaning.")
             st.stop()
 
-        st.write(f"✅ Cleaned dataset shape: {features.shape}")
+        st.write(f"✅ Clustering on {features.shape[0]} valid rows.")
 
+        # Cluster selection
         num_clusters = st.slider("🎯 Select number of clusters", 2, 10, 3)
 
         def perform_clustering(data, n_clusters):
@@ -75,8 +82,11 @@ if uploaded_file is not None:
             return kmeans.fit_predict(scaled_data)
 
         clusters = perform_clustering(features, num_clusters)
+
+        # Add clusters to original data
         decoded['Cluster'] = clusters
 
+        # PCA for 2D visualization
         pca = PCA(n_components=2)
         reduced_data = pca.fit_transform(features)
 
@@ -90,6 +100,7 @@ if uploaded_file is not None:
         fig.update_layout(margin=dict(l=20, r=20, t=40, b=20))
 
         st.plotly_chart(fig)
+
         st.subheader("📋 Clustered Data Sample")
         st.dataframe(decoded.head(10))
     else:
